@@ -1,0 +1,8 @@
+[Unit]
+Description=Linux Bridge Console automatic package updater
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/linux-bridge-console/auto-update.sh
