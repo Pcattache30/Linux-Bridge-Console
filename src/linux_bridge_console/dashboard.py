@@ -7,7 +7,7 @@ import subprocess
 import sys
 import time
 
-from runner import HOME, repo_dir, sync
+from runner import HOME, repo_dir
 
 REFRESH_SECONDS = 15
 
@@ -54,7 +54,7 @@ def draw(scr, rows):
         except curses.error:
             pass
     try:
-        scr.addnstr(height-1, 1, "[Q] Quit    [F] Fetch    [R] Run job    [L] Show logs", width-2,
+        scr.addnstr(height-1, 1, "[Q] Quit    [F] Refresh    [L] Show logs", width-2,
                     curses.A_REVERSE)
     except curses.error:
         pass
@@ -79,19 +79,14 @@ def confirm(scr, message):
 def ui(scr, slug, branch):
     curses.curs_set(0)
     scr.timeout(500)
-    last_fetch = 0
-    last_msg = "Starting..."
+    last_fetch = time.monotonic()
+    last_msg = "Dashboard connected (worker owns Git sync)"
     state = {}
     show_logs = False
     while True:
         now = time.monotonic()
         if now - last_fetch >= REFRESH_SECONDS:
-            try:
-                sync(slug, branch)
-                last_msg = "GitHub sync OK"
-            except Exception as exc:
-                last_msg = f"GitHub sync failed: {exc}"
-            last_fetch = time.monotonic()
+            last_fetch = now
         try:
             state = read_state(slug, branch)
         except Exception as exc:
@@ -107,14 +102,13 @@ def ui(scr, slug, branch):
         phase = worker.get("phase", "not installed")
         service = worker.get("service", "not installed")
         engine = f"Worker: {service} | Phase: {phase} | Auto run: {worker.get('autoRun', False)}"
-        if worker.get("lastError"):
-            last_msg = worker["lastError"][:120]
+        last_msg = worker.get("lastError") or "Worker controls GitHub sync; dashboard is read-only"
         rows = [
-            "LINUX BRIDGE CONSOLE                          v0.3",
+            "LINUX BRIDGE CONSOLE                          v0.3.1",
             "=" * 64,
             f"Repository : {slug}",
             f"Branch     : {branch}",
-            f"Next fetch : {remaining}s",
+            f"UI refresh : {remaining}s",
             engine,
             "",
             f"Job ID     : {job.get('id','--')}",
@@ -141,26 +135,6 @@ def ui(scr, slug, branch):
         if key in (ord("l"), ord("L")):
             show_logs = not show_logs
         if key in (ord("f"), ord("F")):
-            last_fetch = 0
-        if key in (ord("r"), ord("R")):
-            if not job:
-                last_msg = "No job available to execute"
-                continue
-            if result:
-                last_msg = "Job already completed; duplicate execution blocked"
-                continue
-            if not confirm(scr, "Type yes to run job"):
-                last_msg = "Job execution cancelled"
-                continue
-            # Execute with interactive confirmation already given. Output is
-            # redirected to a file and persisted even if SSH is disconnected.
-            # v0.2 foreground: no claims of background-safe operation.
-            scr.clear()
-            draw(scr, ["Executing job (foreground). Do not close SSH.", job.get("id", "")])
-            command = [sys.executable, str(Path(__file__).resolve().with_name("runner.py")),
-                       "--repo", slug, "--branch", branch, "--run"]
-            completed = subprocess.run(command, input="YES\n", text=True, capture_output=True)
-            last_msg = (completed.stdout + completed.stderr).strip()[-300:]
             last_fetch = 0
 
 def main():
