@@ -5,6 +5,7 @@ import fcntl
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import threading
@@ -19,9 +20,14 @@ def get_prefs():
     try:
         data = json.loads(PREFS.read_text())
         return {"autoRun": bool(data.get("autoRun", False)),
-                "autoSend": bool(data.get("autoSend", True))}
+                "autoSend": bool(data.get("autoSend", True)),
+                "activeRepo": data.get("activeRepo", "Pcattache30/Linux-Bridge-Console"),
+                "activeBranch": data.get("activeBranch", "main"),
+                "workspaces": data.get("workspaces", [])}
     except (OSError, ValueError, TypeError):
-        return {"autoRun": False, "autoSend": True}
+        return {"autoRun": False, "autoSend": True,
+                "activeRepo": "Pcattache30/Linux-Bridge-Console",
+                "activeBranch": "main", "workspaces": []}
 
 def save_prefs(data):
     HOME.mkdir(parents=True, exist_ok=True)
@@ -37,14 +43,18 @@ def read_json(path):
 
 class Console:
     def __init__(self, repo, branch):
-        self.repo, self.branch = repo, branch
         self.prefs = get_prefs()
+        self.repo = repo or self.prefs["activeRepo"]
+        self.branch = branch or self.prefs["activeBranch"]
+        self.available_workspaces = []
+        self.workspace_error = ""
+        self.workspace_loading = False
         self.lock = threading.Lock()
         self.phase = "Starting"
         self.message = "Initializing GitHub connection"
         self.job = {}
         self.result = {}
-        self.root = repo_dir(repo)
+        self.root = repo_dir(self.repo)
         self.next_check = 0
         self.running = False
         self.processing = False
@@ -84,6 +94,67 @@ class Console:
             finally:
                 self.busy = False
         threading.Thread(target=perform, daemon=True).start()
+
+    def discover_workspaces(self):
+        """Discover repositories the authenticated user can access."""
+        self.workspace_loading = True
+        try:
+            result = subprocess.run(
+                ["gh", "repo", "list", "Pcattache30", "--limit", "100",
+                 "--json", "nameWithOwner,defaultBranchRef"],
+                capture_output=True, text=True, check=False, timeout=25)
+            if result.returncode:
+                raise RuntimeError((result.stderr or result.stdout).strip()[-200:])
+            items = []
+            for item in json.loads(result.stdout):
+                name = item.get("nameWithOwner")
+                if not isinstance(name, str) or not re.fullmatch(r"[\w.-]+/[\w.-]+", name):
+                    continue
+                branch = (item.get("defaultBranchRef") or {}).get("name") or "main"
+                if re.fullmatch(r"[A-Za-z0-9._/-]+", branch) and ".." not in branch:
+                    items.append({"repo": name, "branch": branch})
+            pinned = self.prefs.get("workspaces", [])
+            for item in pinned + [{"repo": self.repo, "branch": self.branch}]:
+                if isinstance(item, dict) and item.get("repo") and not any(
+                    x["repo"] == item["repo"] for x in items
+                ):
+                    items.insert(0, item)
+            self.available_workspaces = sorted(items, key=lambda x: x["repo"].lower())
+            self.workspace_error = ""
+        except Exception as error:
+            self.workspace_error = str(error)
+            self.available_workspaces = list(self.prefs.get("workspaces", []))
+            if not any(x.get("repo") == self.repo for x in self.available_workspaces):
+                self.available_workspaces.insert(0, {"repo": self.repo, "branch": self.branch})
+        finally:
+            self.workspace_loading = False
+
+    def select_workspace(self, item):
+        if self.processing or self.busy:
+            self.note("Cannot switch workspaces during an active operation")
+            return False
+        name = item.get("repo", "")
+        branch = item.get("branch", "main")
+        if not re.fullmatch(r"[\w.-]+/[\w.-]+", name):
+            self.note("Invalid repository")
+            return False
+        if not re.fullmatch(r"[A-Za-z0-9._/-]+", branch) or ".." in branch:
+            self.note("Invalid branch")
+            return False
+        self.repo, self.branch = name, branch
+        self.root = repo_dir(name)
+        self.job, self.result = {}, {}
+        self.history = []
+        self.phase = "Connecting"
+        self.next_check = 0
+        self.prefs["activeRepo"] = name
+        self.prefs["activeBranch"] = branch
+        saved = [x for x in self.prefs.get("workspaces", []) if x.get("repo") != name]
+        self.prefs["workspaces"] = ([{"repo": name, "branch": branch}] + saved)[:30]
+        save_prefs(self.prefs)
+        self.note("Workspace selected: " + name)
+        self.submit("Fetch", self.fetch)
+        return True
 
     def fetch(self):
         if self.processing:
@@ -262,7 +333,7 @@ def display(scr, app, show_history, colors):
     put(scr, 0, 1, "  LINUX BRIDGE CONSOLE  v" + app.version, w-3, colors["accent"] | curses.A_BOLD)
     put(scr, 0, max(2,w-25), "INTERACTIVE JOB RUNNER", 23, colors["muted"])
     put(scr, 1, 1, "=" * (w-3), w-3, colors["accent"])
-    put(scr, 2, 2, "REPOSITORY", 12, colors["muted"])
+    put(scr, 2, 2, "WORKSPACE", 12, colors["muted"])
     put(scr, 2, 16, app.repo + "  [" + app.branch + "]", w-19, curses.A_BOLD)
     put(scr, 3, 2, "CONNECTION", 12, colors["muted"])
     put(scr, 3, 16, "GitHub polling every 15s", w-18)
@@ -310,9 +381,49 @@ def display(scr, app, show_history, colors):
             colors["bad"] if "error" in line.lower() else 0)
 
     put(scr, h-3, 2, "LAST: " + str(app.message), w-5, colors["muted"])
-    footer = " F Fetch | R Run | A Auto Run | T Auto Send | S Send | L Logs | U Update | Q Quit "
+    footer = " W Workspaces | F Fetch | R Run | A Auto Run | T Auto Send | S Send | L Logs | U Update | Q Quit "
     put(scr, h-1, 0, footer.ljust(w-1), w-1, curses.A_REVERSE)
     scr.refresh()
+
+def workspace_menu(scr, app, colors):
+    """Modal selector; arrow keys and Enter, no command-line arguments."""
+    selected = 0
+    app.submit("Workspaces", app.discover_workspaces)
+    while True:
+        h, w = scr.getmaxyx()
+        scr.erase()
+        put(scr, 0, 2, "SELECT WORKSPACE", w-4, colors["accent"] | curses.A_BOLD)
+        put(scr, 1, 2, "Arrows/J/K: navigate  Enter: select  Esc/W: back", w-4)
+        if app.workspace_loading:
+            put(scr, 3, 2, "Loading GitHub repositories...", w-4, colors["warn"])
+        else:
+            choices = app.available_workspaces
+            if not choices:
+                put(scr, 3, 2, app.workspace_error or "No repositories found", w-4, colors["bad"])
+            visible = max(1, h-6)
+            selected = min(selected, max(0, len(choices)-1))
+            offset = max(0, min(selected-visible+1, len(choices)-visible))
+            for i, choice in enumerate(choices[offset:offset+visible], offset):
+                label = f"{choice['repo']}  [{choice['branch']}]"
+                if choice["repo"] == app.repo:
+                    label += "  (ACTIVE)"
+                put(scr, 3+i-offset, 3, ("> " if selected == i else "  ") + label,
+                    w-6, curses.A_REVERSE if selected == i else 0)
+            if app.workspace_error:
+                put(scr, h-2, 2, "GitHub: " + app.workspace_error, w-4, colors["warn"])
+        scr.refresh()
+        key = scr.getch()
+        if key in (27, ord("w"), ord("W"), ord("q"), ord("Q")):
+            return
+        if app.workspace_loading:
+            continue
+        if key in (curses.KEY_UP, ord("k"), ord("K")):
+            selected = max(0, selected-1)
+        elif key in (curses.KEY_DOWN, ord("j"), ord("J")):
+            selected = min(len(app.available_workspaces)-1, selected+1)
+        elif key in (10, 13, curses.KEY_ENTER) and app.available_workspaces:
+            if app.select_workspace(app.available_workspaces[selected]):
+                return
 
 def screen(scr, app):
     curses.curs_set(0)
@@ -355,13 +466,18 @@ def screen(scr, app):
         elif key in (ord("s"), ord("S")):
             if not app.processing:
                 app.submit("Send", app.send)
+        elif key in (ord("w"), ord("W")):
+            if not app.processing and not app.busy:
+                workspace_menu(scr, app, colors)
+            else:
+                app.note("Finish current operation before selecting workspace")
         elif key in (ord("l"), ord("L")):
             show_history = not show_history
 
 def main():
     parser = argparse.ArgumentParser(description="Linux Bridge Console")
-    parser.add_argument("--repo", default="Pcattache30/Linux-Bridge-Console")
-    parser.add_argument("--branch", default="main")
+    parser.add_argument("--repo", default=None)
+    parser.add_argument("--branch", default=None)
     args = parser.parse_args()
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         print("Use LBC from an interactive terminal", file=sys.stderr)
@@ -373,13 +489,14 @@ def main():
         except BlockingIOError:
             print("Another LBC console is already running", file=sys.stderr)
             return 1
-        action = curses.wrapper(screen, Console(args.repo, args.branch))
+        app = Console(args.repo, args.branch)
+        action = curses.wrapper(screen, app)
         if action in ("update", "restart"):
             if action == "restart":
                 runtime = HOME / "current" / "usr" / "lib" / "linux-bridge-console" / "dashboard.py"
                 if runtime.is_file():
                     os.execv(sys.executable, [sys.executable, str(runtime),
-                                              "--repo", args.repo, "--branch", args.branch])
+                                              "--repo", app.repo, "--branch", app.branch])
                 print("Updated runtime not found; exiting safely.")
                 return 1
             updater = Path(__file__).with_name("update-user.sh")
