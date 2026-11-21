@@ -1,0 +1,12 @@
+[Unit]
+Description=Check for Linux Bridge Console updates regularly
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=1min
+AccuracySec=10s
+Persistent=true
+Unit=lbc-auto-update.service
+
+[Install]
+WantedBy=timers.target
