@@ -1,0 +1,42 @@
+name: Build and publish LBC prerelease
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'packaging/**'
+      - '.github/workflows/publish-deb.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate scripts
+        run: |
+          bash -n packaging/build-deb.sh packaging/publish-release.sh packaging/update-package.sh packaging/lbc-auto-update.sh packaging/enable-auto-update.sh
+          python3 -m compileall -q src
+      - name: Build package
+        shell: bash
+        run: |
+          VERSION="0.5.${{ github.run_number }}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          bash packaging/build-deb.sh "$VERSION"
+          (cd dist && sha256sum "linux-bridge-console_${VERSION}_all.deb" > "linux-bridge-console_${VERSION}_all.deb.sha256")
+      - name: Publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "v$VERSION" \
+            "dist/linux-bridge-console_${VERSION}_all.deb" \
+            "dist/linux-bridge-console_${VERSION}_all.deb.sha256" \
+            --title "Linux Bridge Console v$VERSION" \
+            --notes "Automated development prerelease. Self-update enabled after one-time authorization." \
+            --prerelease \
+            --target "$GITHUB_SHA"
