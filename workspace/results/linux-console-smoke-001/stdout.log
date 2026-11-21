@@ -1,0 +1,5 @@
+LINUX_BRIDGE_SMOKE_001_START
+hostname=test
+user=test
+python=Python 3.13.5
+LINUX_BRIDGE_SMOKE_001_SUCCESS

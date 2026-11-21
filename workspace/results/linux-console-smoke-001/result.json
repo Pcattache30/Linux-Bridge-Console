@@ -1,0 +1,10 @@
+{
+  "jobId": "linux-console-smoke-001",
+  "description": "Verify Linux Bridge Console executes Bash and publishes results",
+  "status": "success",
+  "exitCode": 0,
+  "startedAt": "2026-11-21T19:27:55.093619+00:00",
+  "finishedAt": "2026-11-21T19:27:55.101592+00:00",
+  "hostname": "test",
+  "runner": "linux-bridge-console/0.1"
+}
