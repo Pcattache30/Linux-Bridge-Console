@@ -512,7 +512,7 @@ def main():
             runtime = HOME / "current" / "usr" / "lib" / "linux-bridge-console" / "dashboard.py"
             if runtime.is_file():
                 os.execv(sys.executable, [sys.executable, str(runtime),
-                                          "--repo", args.repo, "--branch", args.branch])
+                                          "--repo", app.repo, "--branch", app.branch])
             print("Updated runtime not found.")
             return 1
     return 0
