@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.venv/
+*.deb
+.env
+config/local.json
+workspace/results/
+*.log
