@@ -33,7 +33,7 @@ Description: Headless GitHub job worker with terminal dashboard
  results and offers an interactive terminal dashboard.
  Automatic job execution is disabled by default.
 EOF
-python3 - "$STAGE/usr/lib/linux-bridge-console" <<\'PY\'
+python3 - "$STAGE/usr/lib/linux-bridge-console" <<'PY'
 from pathlib import Path
 import sys
 for source in Path(sys.argv[1]).glob("*.py"):
