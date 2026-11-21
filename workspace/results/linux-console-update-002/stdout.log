@@ -1,0 +1,5 @@
+LBC_UPDATE_002_START
+hostname=test
+user=test
+current_version=0.5.3
+Checking GitHub release...
