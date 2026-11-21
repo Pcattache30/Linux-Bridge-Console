@@ -1,0 +1,14 @@
+LBC_LEGACY_CLEANUP_005_START
+ACTIVE_RUNTIME_PYTHON_VALIDATED
+Removing obsolete per-user runtime versions (preserving 0.5.14)...
+active_launcher=/home/test/.local/bin/lbc
+removed_legacy_dev_entrypoint=/home/test/Projects/Linux-Bridge-Console/lbc
+legacy_system_package=0.5.5
+removed_system_package=no
+BLOCKED: sudo authorization required to uninstall obsolete dpkg package
+active_runtime=versions/0.5.14
+remaining_user_versions:
+0.5.14
+active_launcher_exists=yes
+system_package_status=install ok installed 0.5.5
+LBC_LEGACY_CLEANUP_005_COMPLETE
