@@ -15,8 +15,15 @@ HOME = Path.home() / ".local" / "share" / "linux-bridge-console"
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 def run(args, cwd=None, check=True, capture=True):
-    return subprocess.run(args, cwd=cwd, text=True, check=check,
-                          capture_output=capture)
+    completed = subprocess.run(args, cwd=cwd, text=True, check=False,
+                               capture_output=capture)
+    if check and completed.returncode:
+        details = ((completed.stderr or "") + "\n" + (completed.stdout or "")).strip()
+        raise RuntimeError(
+            f"Command failed (exit {completed.returncode}): {' '.join(args)}"
+            + (f"\n{details[-2000:]}" if details else "")
+        )
+    return completed
 
 def ensure_identity():
     for executable in ("git", "gh", "bash"):
