@@ -15,6 +15,7 @@ from runner import HOME, repo_dir, sync, inspect, execute, publish
 
 PREFS = HOME / "console-settings.json"
 POLL = 15
+POLL_CHOICES = (5, 10, 15, 30, 60, 120)
 
 def get_prefs():
     try:
@@ -23,11 +24,14 @@ def get_prefs():
                 "autoSend": bool(data.get("autoSend", True)),
                 "activeRepo": data.get("activeRepo", "Pcattache30/Linux-Bridge-Console"),
                 "activeBranch": data.get("activeBranch", "main"),
-                "workspaces": data.get("workspaces", [])}
+                "workspaces": data.get("workspaces", []),
+                "pollSeconds": data.get("pollSeconds", 15) if data.get("pollSeconds", 15) in POLL_CHOICES else 15,
+                "autoUpdate": bool(data.get("autoUpdate", True))}
     except (OSError, ValueError, TypeError):
         return {"autoRun": False, "autoSend": True,
                 "activeRepo": "Pcattache30/Linux-Bridge-Console",
-                "activeBranch": "main", "workspaces": []}
+                "activeBranch": "main", "workspaces": [],
+                "pollSeconds": 15, "autoUpdate": True}
 
 def save_prefs(data):
     HOME.mkdir(parents=True, exist_ok=True)
@@ -165,7 +169,7 @@ class Console:
         jid = self.job["id"]
         dest = self.root / "workspace" / "results" / jid
         self.result = read_json(dest / "result.json")
-        self.next_check = time.monotonic() + POLL
+        self.next_check = time.monotonic() + self.prefs["pollSeconds"]
         if self.result:
             self.phase = "Completed"
             if not self.history or self.history[-1] != f"Job {jid}: {self.result.get('status', 'completed')}":
@@ -336,7 +340,7 @@ def display(scr, app, show_history, colors):
     put(scr, 2, 2, "WORKSPACE", 12, colors["muted"])
     put(scr, 2, 16, app.repo + "  [" + app.branch + "]", w-19, curses.A_BOLD)
     put(scr, 3, 2, "CONNECTION", 12, colors["muted"])
-    put(scr, 3, 16, "GitHub polling every 15s", w-18)
+    put(scr, 3, 16, f"GitHub polling every {app.prefs[\'pollSeconds\']}s", w-18)
     put(scr, 4, 2, "AUTO RUN", 10, colors["muted"])
     put(scr, 4, 16, "ON" if app.prefs["autoRun"] else "OFF", 4,
         colors["good"] if app.prefs["autoRun"] else colors["warn"])
@@ -381,7 +385,7 @@ def display(scr, app, show_history, colors):
             colors["bad"] if "error" in line.lower() else 0)
 
     put(scr, h-3, 2, "LAST: " + str(app.message), w-5, colors["muted"])
-    footer = " W Workspaces | F Fetch | R Run | A Auto Run | T Auto Send | S Send | L Logs | U Update | Q Quit "
+    footer = " W Workspaces | G Settings | F Fetch | R Run | A Auto Run | T Auto Send | S Send | L Logs | U Update | Q Quit "
     put(scr, h-1, 0, footer.ljust(w-1), w-1, curses.A_REVERSE)
     scr.refresh()
 
@@ -425,6 +429,58 @@ def workspace_menu(scr, app, colors):
             if app.select_workspace(app.available_workspaces[selected]):
                 return
 
+def settings_menu(scr, app, colors):
+    """Interactive settings, persisted across self-updates."""
+    selected = 0
+    while True:
+        h, w = scr.getmaxyx()
+        scr.erase()
+        entries = [
+            ("Auto Run", "ON" if app.prefs["autoRun"] else "OFF"),
+            ("Auto Send", "ON" if app.prefs["autoSend"] else "OFF"),
+            ("GitHub polling interval", str(app.prefs["pollSeconds"]) + " seconds"),
+            ("Automatic application updates", "ON" if app.prefs["autoUpdate"] else "OFF"),
+            ("Default workspace", app.prefs["activeRepo"] + " [" + app.prefs["activeBranch"] + "]"),
+        ]
+        put(scr, 0, 2, "LBC SETTINGS", w-4, colors["accent"] | curses.A_BOLD)
+        put(scr, 1, 2, "Up/Down: select   Enter/Space: change   Esc/G: back", w-4)
+        put(scr, 3, 2, "Settings are saved automatically.", w-4, colors["muted"])
+        for i, (label, value) in enumerate(entries):
+            attr = curses.A_REVERSE if i == selected else 0
+            put(scr, 5+i*2, 3, ("> " if i == selected else "  ") + label, 36, attr)
+            put(scr, 5+i*2, 40, value, max(1, w-43), attr)
+        put(scr, min(h-3, 17), 3,
+            "Default workspace is changed via [W] Workspaces.", w-6, colors["muted"])
+        scr.refresh()
+        key = scr.getch()
+        if key in (27, ord("g"), ord("G"), ord("q"), ord("Q")):
+            return
+        if key in (curses.KEY_UP, ord("k"), ord("K")):
+            selected = (selected - 1) % len(entries)
+        elif key in (curses.KEY_DOWN, ord("j"), ord("J")):
+            selected = (selected + 1) % len(entries)
+        elif key in (10, 13, 32, curses.KEY_ENTER):
+            if selected == 0:
+                app.prefs["autoRun"] = not app.prefs["autoRun"]
+                if app.prefs["autoRun"] and app.job and not app.result and not app.processing:
+                    app.start_job()
+            elif selected == 1:
+                app.prefs["autoSend"] = not app.prefs["autoSend"]
+            elif selected == 2:
+                interval = app.prefs["pollSeconds"]
+                app.prefs["pollSeconds"] = POLL_CHOICES[
+                    (POLL_CHOICES.index(interval) + 1) % len(POLL_CHOICES)]
+                app.next_check = time.monotonic() + app.prefs["pollSeconds"]
+            elif selected == 3:
+                app.prefs["autoUpdate"] = not app.prefs["autoUpdate"]
+                if app.prefs["autoUpdate"]:
+                    app.next_update = time.monotonic() + 2
+            else:
+                app.note("Press W to select and save your default workspace")
+                return
+            save_prefs(app.prefs)
+            app.note("Settings saved")
+
 def screen(scr, app):
     curses.curs_set(0)
     scr.timeout(250)
@@ -435,11 +491,11 @@ def screen(scr, app):
         now = time.monotonic()
         if app.restart_requested and not app.processing and not app.busy:
             return "restart"
-        if now >= app.next_update and not app.busy and not app.processing:
+        if app.prefs["autoUpdate"] and now >= app.next_update and not app.busy and not app.processing:
             app.next_update = now + 60
             app.submit("Update", app.update_runtime)
         if now >= app.next_check and not app.busy and not app.processing:
-            app.next_check = now + POLL
+            app.next_check = now + app.prefs["pollSeconds"]
             app.submit("Fetch", app.fetch)
         display(scr, app, show_history, colors)
         key = scr.getch()
@@ -466,6 +522,8 @@ def screen(scr, app):
         elif key in (ord("s"), ord("S")):
             if not app.processing:
                 app.submit("Send", app.send)
+        elif key in (ord("g"), ord("G")):
+            settings_menu(scr, app, colors)
         elif key in (ord("w"), ord("W")):
             if not app.processing and not app.busy:
                 workspace_menu(scr, app, colors)
