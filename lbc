@@ -4,6 +4,13 @@ HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 case "${1:-}" in
   update)
     shift
+    if [[ -x /usr/bin/lbc ]]; then
+      exec /usr/bin/lbc update "$@"
+    fi
+    exec bash "$HERE/tools/update.sh" "$@"
+    ;;
+  update-source)
+    shift
     exec bash "$HERE/tools/update.sh" "$@"
     ;;
   status)
