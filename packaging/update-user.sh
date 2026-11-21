@@ -50,7 +50,7 @@ mv -Tf "$APP/current.next" "$APP/current"
 fi
 # Installed package's wrapper remains available at /usr/bin/lbc.
 # This user-level launcher always follows the newest verified runtime.
-cat > "$BIN/lbc" <<'SH'
+cat > "$BIN/lbc.next" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 APP="$HOME/.local/share/linux-bridge-console"
