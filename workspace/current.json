@@ -1,6 +1,5 @@
 {
-  "id": "linux-console-update-003",
-  "description": "Verify tagged LBC prerelease and install update if unattended sudo is authorized",
-  "script": "linux-console-update-003.sh",
-  "selfUpdate": true
+  "id": "linux-console-bootstrap-004",
+  "description": "Install v0.5.14 rootless self-updating LBC runtime and remove older user versions",
+  "script": "linux-console-bootstrap-004.sh"
 }
