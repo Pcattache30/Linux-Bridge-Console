@@ -1,6 +1,6 @@
 {
-  "id": "linux-console-update-002",
-  "description": "Update installed Linux Bridge Console from GitHub release v0.5.5 and report installed version",
-  "script": "linux-console-update-002.sh",
+  "id": "linux-console-update-003",
+  "description": "Verify tagged LBC prerelease and install update if unattended sudo is authorized",
+  "script": "linux-console-update-003.sh",
   "selfUpdate": true
 }
