@@ -1,5 +1,5 @@
 {
-  "id": "linux-console-bootstrap-004",
-  "description": "Install v0.5.14 rootless self-updating LBC runtime and remove older user versions",
-  "script": "linux-console-bootstrap-004.sh"
+  "id": "linux-console-cleanup-005",
+  "description": "Remove previous LBC user versions and legacy launcher; uninstall obsolete system package if authorized",
+  "script": "linux-console-cleanup-005.sh"
 }
