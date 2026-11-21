@@ -226,7 +226,7 @@ class Console:
                 self.note(f"Execution/upload failed: {error}")
             finally:
                 self.processing = False
-                self.next_check = time.monotonic() + POLL
+                self.next_check = time.monotonic() + self.prefs["pollSeconds"]
         threading.Thread(target=task, daemon=True).start()
 
     def send(self):
@@ -340,7 +340,7 @@ def display(scr, app, show_history, colors):
     put(scr, 2, 2, "WORKSPACE", 12, colors["muted"])
     put(scr, 2, 16, app.repo + "  [" + app.branch + "]", w-19, curses.A_BOLD)
     put(scr, 3, 2, "CONNECTION", 12, colors["muted"])
-    put(scr, 3, 16, f"GitHub polling every {app.prefs[\'pollSeconds\']}s", w-18)
+    put(scr, 3, 16, "GitHub polling every " + str(app.prefs["pollSeconds"]) + "s", w-18)
     put(scr, 4, 2, "AUTO RUN", 10, colors["muted"])
     put(scr, 4, 16, "ON" if app.prefs["autoRun"] else "OFF", 4,
         colors["good"] if app.prefs["autoRun"] else colors["warn"])
