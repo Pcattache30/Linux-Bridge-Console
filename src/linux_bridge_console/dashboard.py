@@ -1,6 +1,5 @@
 """Linux Bridge Console: interactive Windows Bridge-like job console."""
 import argparse
-import shutil
 import curses
 import fcntl
 import json
@@ -54,6 +53,10 @@ class Console:
         self.last_refresh = 0
         self.history = []
         self.cancel_requested = False
+        package_version = subprocess.run(
+            ["dpkg-query", "-W", "-f=${Version}", "linux-bridge-console"],
+            capture_output=True, text=True, check=False)
+        self.version = package_version.stdout.strip() if package_version.returncode == 0 else "dev"
 
     def note(self, message):
         with self.lock:
@@ -230,7 +233,7 @@ def display(scr, app, show_history, colors):
     log_y = top + middle_h + 1
     log_h = max(3, h - log_y - 4)
 
-    put(scr, 0, 1, "  LINUX BRIDGE CONSOLE", w-3, colors["accent"] | curses.A_BOLD)
+    put(scr, 0, 1, "  LINUX BRIDGE CONSOLE  v" + app.version, w-3, colors["accent"] | curses.A_BOLD)
     put(scr, 0, max(2,w-25), "INTERACTIVE JOB RUNNER", 23, colors["muted"])
     put(scr, 1, 1, "=" * (w-3), w-3, colors["accent"])
     put(scr, 2, 2, "REPOSITORY", 12, colors["muted"])
