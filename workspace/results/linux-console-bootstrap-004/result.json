@@ -1,0 +1,10 @@
+{
+  "jobId": "linux-console-bootstrap-004",
+  "description": "Install v0.5.14 rootless self-updating LBC runtime and remove older user versions",
+  "status": "success",
+  "exitCode": 0,
+  "startedAt": "2026-11-21T20:09:16.792107+00:00",
+  "finishedAt": "2026-11-21T20:09:18.309275+00:00",
+  "hostname": "test",
+  "runner": "linux-bridge-console/0.1"
+}

@@ -1,0 +1,13 @@
+LBC_BOOTSTRAP_004_START
+host=test user=test
+base_package_version=0.5.5
+Waiting for verified GitHub prerelease v0.5.14...
+Installing verified user-owned runtime without sudo...
+linux-bridge-console_0.5.14_all.deb: OK
+LBC installed user runtime v0.5.14
+Launcher: /home/test/.local/bin/lbc
+active_runtime=versions/0.5.14
+launcher=/home/test/.local/bin/lbc
+active_versions:
+0.5.14
+LBC_BOOTSTRAP_004_SUCCESS
