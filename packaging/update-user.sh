@@ -70,5 +70,9 @@ for old in "$VERSIONS"/*; do
   [[ "$(basename "$old")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || continue
   rm -rf -- "$old"
 done
-echo "LBC installed user runtime v$VERSION"
+if [[ "$ALREADY_CURRENT" -eq 0 ]]; then
+  echo "LBC installed user runtime v$VERSION"
+else
+  echo "LBC runtime current: $VERSION"
+fi
 echo "Launcher: $BIN/lbc"
