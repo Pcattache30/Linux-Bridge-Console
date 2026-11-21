@@ -15,6 +15,7 @@ mkdir -p "$OUT" "$STAGE/DEBIAN" \
   "$STAGE/usr/bin" \
   "$STAGE/usr/share/doc/$PKG" \
   "$STAGE/usr/lib/systemd/user"
+chmod 755 "$STAGE"
 cp "$ROOT/src/linux_bridge_console/"*.py "$STAGE/usr/lib/linux-bridge-console/"
 install -m 0755 "$ROOT/packaging/lbc-packaged" "$STAGE/usr/bin/lbc"
 install -m 0644 "$ROOT/packaging/linux-bridge-console.service" "$STAGE/usr/lib/systemd/user/linux-bridge-console.service"
@@ -32,7 +33,14 @@ Description: Headless GitHub job worker with terminal dashboard
  results and offers an interactive terminal dashboard.
  Automatic job execution is disabled by default.
 EOF
-python3 -m compileall -q "$STAGE/usr/lib/linux-bridge-console"
+python3 - "$STAGE/usr/lib/linux-bridge-console" <<\'PY\'
+from pathlib import Path
+import sys
+for source in Path(sys.argv[1]).glob("*.py"):
+    compile(source.read_bytes(), str(source), "exec")
+print("Python syntax validation passed")
+PY
+find "$STAGE/usr" -type d -exec chmod 755 {} +
 dpkg-deb --build --root-owner-group "$STAGE" "$OUT/${PKG}_${VERSION}_all.deb"
 dpkg-deb --info "$OUT/${PKG}_${VERSION}_all.deb"
 sha256sum "$OUT/${PKG}_${VERSION}_all.deb"
