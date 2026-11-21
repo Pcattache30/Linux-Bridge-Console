@@ -8,9 +8,8 @@ case "${1:-}" in
     if [[ -f "$STATE" ]]; then cat "$STATE"; else echo "No worker status yet. Run: lbc install-service"; fi
     ;;
   update)
-    echo "Installed .deb build: upgrade using a verified Debian package."
-    echo "For development source updates, run tools/update.sh in the source checkout."
-    echo "Release-based automatic package upgrades will be added after release verification."
+    shift
+    exec bash "$APP/update-package.sh" "$@"
     ;;
   install-service)
     mkdir -p "$SERVICE_DIR"
