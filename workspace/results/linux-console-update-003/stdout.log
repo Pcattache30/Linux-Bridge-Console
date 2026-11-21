@@ -1,0 +1,8 @@
+LBC_UPDATE_003_START
+hostname=test
+user=test
+installed_before=0.5.3
+Verifying prerelease v0.5.5 by explicit tag...
+{"assets":["linux-bridge-console_0.5.5_all.deb","linux-bridge-console_0.5.5_all.deb.sha256"],"prerelease":true,"tag":"v0.5.5"}
+BLOCKED: Package installation requires sudo authentication.
+No sudo privileges were changed and no update was installed.

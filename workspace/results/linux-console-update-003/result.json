@@ -1,0 +1,10 @@
+{
+  "jobId": "linux-console-update-003",
+  "description": "Verify tagged LBC prerelease and install update if unattended sudo is authorized",
+  "status": "failed",
+  "exitCode": 3,
+  "startedAt": "2026-11-21T20:03:06.400479+00:00",
+  "finishedAt": "2026-11-21T20:03:06.815319+00:00",
+  "hostname": "test",
+  "runner": "linux-bridge-console/0.1"
+}
