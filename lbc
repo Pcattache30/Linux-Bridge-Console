@@ -9,6 +9,10 @@ case "${1:-}" in
     fi
     exec bash "$HERE/tools/update.sh" "$@"
     ;;
+  auto-update)
+    shift
+    exec /usr/bin/lbc auto-update "$@"
+    ;;
   update-source)
     shift
     exec bash "$HERE/tools/update.sh" "$@"
