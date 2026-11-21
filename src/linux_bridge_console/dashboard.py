@@ -53,6 +53,8 @@ class Console:
         self.last_refresh = 0
         self.history = []
         self.cancel_requested = False
+        self.next_update = time.monotonic() + 20
+        self.restart_requested = False
         package_version = subprocess.run(
             ["dpkg-query", "-W", "-f=${Version}", "linux-bridge-console"],
             capture_output=True, text=True, check=False)
@@ -160,6 +162,25 @@ class Console:
         publish(self.root, folder, self.branch)
         self.phase = "Completed"
         self.note(f"Results for {jid} uploaded")
+
+    def update_runtime(self):
+        if self.processing:
+            return
+        path = Path(__file__).with_name("update-user.sh")
+        if not path.exists():
+            path = Path("/usr/lib/linux-bridge-console/update-user.sh")
+        if not path.exists():
+            self.note("Updater missing from this installed version")
+            return
+        command = subprocess.run(["bash", str(path)], capture_output=True, text=True,
+                                 timeout=180, check=False)
+        output = (command.stdout + "\\n" + command.stderr).strip()
+        if command.returncode:
+            raise RuntimeError(output[-600:] or f"Updater exit {command.returncode}")
+        if "installed user runtime v" in output:
+            self.note("New LBC version installed; restarting dashboard")
+            self.restart_requested = True
+        self.next_update = time.monotonic() + 60
 
     def output(self):
         if not self.job:
@@ -296,6 +317,11 @@ def screen(scr, app):
     app.submit("Fetch", app.fetch)
     while True:
         now = time.monotonic()
+        if app.restart_requested and not app.processing and not app.busy:
+            return "restart"
+        if now >= app.next_update and not app.busy and not app.processing:
+            app.next_update = now + 60
+            app.submit("Update", app.update_runtime)
         if now >= app.next_check and not app.busy and not app.processing:
             app.next_check = now + POLL
             app.submit("Fetch", app.fetch)
@@ -343,19 +369,30 @@ def main():
             print("Another LBC console is already running", file=sys.stderr)
             return 1
         action = curses.wrapper(screen, Console(args.repo, args.branch))
-        if action == "update":
-            updater = "/usr/lib/linux-bridge-console/update-package.sh"
-            if not Path(updater).exists():
-                print("Package updater unavailable; install a packaged release.")
+        if action in ("update", "restart"):
+            if action == "restart":
+                runtime = HOME / "current" / "usr" / "lib" / "linux-bridge-console" / "dashboard.py"
+                if runtime.is_file():
+                    os.execv(sys.executable, [sys.executable, str(runtime),
+                                              "--repo", args.repo, "--branch", args.branch])
+                print("Updated runtime not found; exiting safely.")
                 return 1
-            print("Checking for LBC package updates...")
-            result = subprocess.run(["bash", updater], check=False)
+            updater = Path(__file__).with_name("update-user.sh")
+            if not updater.exists():
+                updater = Path("/usr/lib/linux-bridge-console/update-user.sh")
+            if not updater.exists():
+                print("Updater unavailable in this installation.")
+                return 1
+            result = subprocess.run(["bash", str(updater)], check=False)
             if result.returncode:
                 print(f"Update failed (exit {result.returncode}).")
                 return result.returncode
-            print("Update check completed. Reopening dashboard...")
-            os.execv(sys.executable, [sys.executable, "/usr/lib/linux-bridge-console/dashboard.py",
-                                      "--repo", args.repo, "--branch", args.branch])
+            runtime = HOME / "current" / "usr" / "lib" / "linux-bridge-console" / "dashboard.py"
+            if runtime.is_file():
+                os.execv(sys.executable, [sys.executable, str(runtime),
+                                          "--repo", args.repo, "--branch", args.branch])
+            print("Updated runtime not found.")
+            return 1
     return 0
 
 if __name__ == "__main__":
