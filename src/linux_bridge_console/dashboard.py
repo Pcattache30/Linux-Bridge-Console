@@ -97,7 +97,8 @@ class Console:
         self.next_check = time.monotonic() + POLL
         if self.result:
             self.phase = "Completed"
-            self.note(f"Job {jid}: {self.result.get('status', 'completed')}")
+            if not self.history or self.history[-1] != f"Job {jid}: {self.result.get('status', 'completed')}":
+                self.note(f"Job {jid}: {self.result.get('status', 'completed')}")
         else:
             self.phase = "Job available"
             self.note(f"Received job {jid}: {self.job.get('description', '')}")
