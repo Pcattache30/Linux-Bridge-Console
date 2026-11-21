@@ -1,6 +1,7 @@
 """Long-running Linux Bridge worker. Execution is opt-in, never implicit."""
 import argparse
 import datetime as datetime
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -60,11 +61,15 @@ def tick(repo, branch, auto_run, timeout):
     fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w") as stream:
         json.dump(claim, stream)
-    store(phase="running-job", jobId=jid, description=job.get("description", ""))
-    result, output_dir = execute(root, job, script, timeout)
-    store(phase="uploading", lastResult=result["status"])
-    publish(root, output_dir, branch)
-    store(phase="completed", lastResult=result["status"])
+    # Hold an advisory lock from immediately before launch through result upload.
+    # The root-owned package updater must acquire the same lock.
+    with (HOME / "job.lock").open("a+") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        store(phase="running-job", jobId=jid, description=job.get("description", ""))
+        result, output_dir = execute(root, job, script, timeout)
+        store(phase="uploading", lastResult=result["status"])
+        publish(root, output_dir, branch)
+        store(phase="completed", lastResult=result["status"])
 
 def main():
     parser = argparse.ArgumentParser()
@@ -79,6 +84,8 @@ def main():
         parser.error("Interval must be >= 5; timeout must be > 0")
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
+    HOME.mkdir(parents=True, exist_ok=True)
+    (HOME / "job.lock").touch(exist_ok=True)
     store(service="starting", autoRun=args.auto_run, phase="starting")
     try:
         while RUNNING:
