@@ -1,0 +1,14 @@
+[Unit]
+Description=Linux Bridge Console background worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/lib/linux-bridge-console/worker.py --repo Pcattache30/Linux-Bridge-Console --interval 15
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target
