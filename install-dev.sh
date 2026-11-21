@@ -27,7 +27,7 @@ Environment=PYTHONUNBUFFERED=1
 WantedBy=default.target
 EOF
 systemctl --user daemon-reload
-systemctl --user enable --now linux-bridge-console.service
-echo "Worker installed. Automatic execution remains DISABLED."
+echo "Interactive LBC launcher installed. Background service not enabled."
+echo "Auto Run is controlled within the interactive dashboard."
 echo "Run $BIN/lbc | $BIN/lbc status | $BIN/lbc update"
 echo "Add $BIN to PATH if required."
