@@ -4,11 +4,8 @@ SOURCE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 BIN="$HOME/.local/bin"
 SERVICE="$HOME/.config/systemd/user"
 mkdir -p "$BIN" "$SERVICE"
-cat > "$BIN/lbc" <<EOF
-#!/usr/bin/env bash
-exec python3 "$SOURCE/src/linux_bridge_console/dashboard.py" "\$@"
-EOF
-chmod 755 "$BIN/lbc"
+chmod +x "$SOURCE/lbc"
+ln -sfn "$SOURCE/lbc" "$BIN/lbc"
 cat > "$SERVICE/linux-bridge-console.service" <<EOF
 [Unit]
 Description=Linux Bridge Console background worker
@@ -28,7 +25,6 @@ WantedBy=default.target
 EOF
 systemctl --user daemon-reload
 systemctl --user enable --now linux-bridge-console.service
-echo "User worker installed (auto-run DISABLED)."
-echo "Dashboard: $BIN/lbc"
-echo "Status: systemctl --user status linux-bridge-console --no-pager"
-echo "NOTE: To run after logout, an administrator can enable linger for this user."
+echo "Worker installed. Automatic execution remains DISABLED."
+echo "Run $BIN/lbc | $BIN/lbc status | $BIN/lbc update"
+echo "Add $BIN to PATH if required."
