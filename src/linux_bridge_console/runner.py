@@ -108,7 +108,7 @@ def publish(root, result_dir, branch):
     files = [str(p.relative_to(root)) for p in
              (result_dir / "result.json", result_dir / "stdout.log",
               result_dir / "stderr.log")]
-    run(["git", "add", "--", *files], cwd=root)
+    run(["git", "add", "-f", "--", *files], cwd=root)
     run(["git", "-c", "user.name=Linux Bridge Console",
          "-c", "user.email=linux-bridge-console@localhost",
          "commit", "-m", f"Record job result: {result_dir.name}"], cwd=root)
