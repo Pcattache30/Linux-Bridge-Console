@@ -14,11 +14,16 @@ mkdir -p "$OUT" "$STAGE/DEBIAN" \
   "$STAGE/usr/lib/linux-bridge-console" \
   "$STAGE/usr/bin" \
   "$STAGE/usr/share/doc/$PKG" \
-  "$STAGE/usr/lib/systemd/user"
+  "$STAGE/usr/lib/systemd/user" \
+  "$STAGE/usr/lib/systemd/system"
 chmod 755 "$STAGE"
 cp "$ROOT/src/linux_bridge_console/"*.py "$STAGE/usr/lib/linux-bridge-console/"
 install -m 0755 "$ROOT/packaging/lbc-packaged" "$STAGE/usr/bin/lbc"
 install -m 0755 "$ROOT/packaging/update-package.sh" "$STAGE/usr/lib/linux-bridge-console/update-package.sh"
+install -m 0755 "$ROOT/packaging/lbc-auto-update.sh" "$STAGE/usr/lib/linux-bridge-console/auto-update.sh"
+install -m 0755 "$ROOT/packaging/enable-auto-update.sh" "$STAGE/usr/lib/linux-bridge-console/enable-auto-update.sh"
+install -m 0644 "$ROOT/packaging/lbc-auto-update.service" "$STAGE/usr/lib/systemd/system/lbc-auto-update.service"
+install -m 0644 "$ROOT/packaging/lbc-auto-update.timer" "$STAGE/usr/lib/systemd/system/lbc-auto-update.timer"
 install -m 0644 "$ROOT/packaging/linux-bridge-console.service" "$STAGE/usr/lib/systemd/user/linux-bridge-console.service"
 install -m 0644 "$ROOT/README.md" "$STAGE/usr/share/doc/$PKG/README.md"
 cat > "$STAGE/DEBIAN/control" <<EOF
