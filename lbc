@@ -1,4 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-exec python3 "$HERE/src/linux_bridge_console/dashboard.py" "$@"
+case "${1:-}" in
+  update)
+    shift
+    exec bash "$HERE/tools/update.sh" "$@"
+    ;;
+  status)
+    exec cat "$HOME/.local/share/linux-bridge-console/worker-state.json"
+    ;;
+  *)
+    exec python3 "$HERE/src/linux_bridge_console/dashboard.py" "$@"
+    ;;
+esac
