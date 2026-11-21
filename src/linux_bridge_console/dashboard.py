@@ -195,7 +195,7 @@ def screen(scr, app):
     scr.timeout(250)
     show_history = False
     app.submit("Fetch", app.fetch)
-    footer = "[F] Fetch  [R] Receive & Run  [A] Auto Run  [S] Send Results  [L] Logs  [Q] Quit"
+    footer = "[F] Fetch [R] Run [A] Auto Run [T] Auto Send [S] Send [L] Logs [Q] Quit"
     while True:
         now = time.monotonic()
         if now >= app.next_check and not app.busy and not app.processing:
@@ -235,6 +235,10 @@ def screen(scr, app):
             app.note(f"Auto Run {'enabled' if app.prefs['autoRun'] else 'disabled'}")
             if app.prefs["autoRun"] and app.job and not app.result and not app.processing:
                 app.start_job()
+        elif key in (ord("t"), ord("T")):
+            app.prefs["autoSend"] = not app.prefs["autoSend"]
+            save_prefs(app.prefs)
+            app.note("Auto Send " + ("enabled" if app.prefs["autoSend"] else "disabled"))
         elif key in (ord("r"), ord("R")):
             app.start_job()
         elif key in (ord("f"), ord("F")):
