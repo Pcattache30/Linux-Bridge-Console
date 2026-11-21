@@ -7,7 +7,7 @@ import subprocess
 import sys
 import time
 
-from runner import repo_dir, sync
+from runner import HOME, repo_dir, sync
 
 REFRESH_SECONDS = 15
 
@@ -99,12 +99,23 @@ def ui(scr, slug, branch):
         job = state.get("job", {})
         result = state.get("result", {})
         remaining = max(0, int(REFRESH_SECONDS - (time.monotonic() - last_fetch)))
+        worker = {}
+        try:
+            worker = json.loads((HOME / "worker-state.json").read_text())
+        except (OSError, ValueError):
+            pass
+        phase = worker.get("phase", "not installed")
+        service = worker.get("service", "not installed")
+        engine = f"Worker: {service} | Phase: {phase} | Auto run: {worker.get('autoRun', False)}"
+        if worker.get("lastError"):
+            last_msg = worker["lastError"][:120]
         rows = [
-            "LINUX BRIDGE CONSOLE                          v0.2",
+            "LINUX BRIDGE CONSOLE                          v0.3",
             "=" * 64,
             f"Repository : {slug}",
             f"Branch     : {branch}",
             f"Next fetch : {remaining}s",
+            engine,
             "",
             f"Job ID     : {job.get('id','--')}",
             f"Description: {job.get('description','--')}",
