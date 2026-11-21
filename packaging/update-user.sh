@@ -18,8 +18,12 @@ VERSION="${TAG#v}"
 CURRENT="$(readlink "$APP/current" 2>/dev/null || true)"
 if [[ "$CURRENT" == "versions/$VERSION" && "${1:-}" != "--force" ]]; then
   echo "LBC user runtime already current: $VERSION"
-  exit 0
+  # Continue to repair the launcher and remove old user runtime copies.
+  ALREADY_CURRENT=1
+else
+  ALREADY_CURRENT=0
 fi
+if [[ "$ALREADY_CURRENT" -eq 0 ]]; then
 TMP="$(mktemp -d "$APP/update.XXXXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 DEB="linux-bridge-console_${VERSION}_all.deb"
@@ -43,6 +47,7 @@ if [[ ! -d "$DEST" ]]; then
 fi
 ln -s "versions/$VERSION" "$APP/current.next"
 mv -Tf "$APP/current.next" "$APP/current"
+fi
 # Installed package's wrapper remains available at /usr/bin/lbc.
 # This user-level launcher always follows the newest verified runtime.
 cat > "$BIN/lbc" <<'SH'
@@ -55,6 +60,15 @@ if [[ "${1:-}" == "update" ]]; then
 fi
 exec python3 "$APP/current/usr/lib/linux-bridge-console/dashboard.py" "$@"
 SH
-chmod 0755 "$BIN/lbc"
+chmod 0755 "$BIN/lbc.next"
+mv -f "$BIN/lbc.next" "$BIN/lbc"
+# Remove old user-runtime copies only after activating the verified version.
+# Do not touch Debian-owned files, the GitHub job workspace, or user settings.
+for old in "$VERSIONS"/*; do
+  [[ -d "$old" && ! -L "$old" ]] || continue
+  [[ "$old" == "$VERSIONS/$VERSION" ]] && continue
+  [[ "$(basename "$old")" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || continue
+  rm -rf -- "$old"
+done
 echo "LBC installed user runtime v$VERSION"
 echo "Launcher: $BIN/lbc"
