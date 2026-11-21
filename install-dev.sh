@@ -4,8 +4,11 @@ SOURCE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 BIN="$HOME/.local/bin"
 SERVICE="$HOME/.config/systemd/user"
 mkdir -p "$BIN" "$SERVICE"
-chmod +x "$SOURCE/lbc"
-ln -sfn "$SOURCE/lbc" "$BIN/lbc"
+cat > "$BIN/lbc" <<EOF
+#!/usr/bin/env bash
+exec bash "$SOURCE/lbc" "\$@"
+EOF
+chmod 755 "$BIN/lbc"
 cat > "$SERVICE/linux-bridge-console.service" <<EOF
 [Unit]
 Description=Linux Bridge Console background worker
