@@ -1,6 +1,6 @@
 {
-  "id": "linux-console-smoke-001",
-  "description": "Verify Linux Bridge Console executes Bash and publishes results",
-  "script": "linux-console-smoke-001.sh",
-  "selfUpdate": false
+  "id": "linux-console-update-002",
+  "description": "Update installed Linux Bridge Console from GitHub release v0.5.5 and report installed version",
+  "script": "linux-console-update-002.sh",
+  "selfUpdate": true
 }
