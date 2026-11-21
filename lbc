@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# The development shim must never hide the installed application.
+# Deliberate source-only operations remain available explicitly.
 case "${1:-}" in
-  update)
-    shift
-    if [[ -x /usr/bin/lbc ]]; then
-      exec /usr/bin/lbc update "$@"
-    fi
-    exec bash "$HERE/tools/update.sh" "$@"
-    ;;
-  auto-update)
-    shift
-    exec /usr/bin/lbc auto-update "$@"
-    ;;
   update-source)
     shift
     exec bash "$HERE/tools/update.sh" "$@"
     ;;
-  status)
-    exec cat "$HOME/.local/share/linux-bridge-console/worker-state.json"
+  run-source)
+    shift
+    exec python3 "$HERE/src/linux_bridge_console/dashboard.py" "$@"
     ;;
   *)
+    if [[ -x /usr/bin/lbc ]]; then
+      exec /usr/bin/lbc "$@"
+    fi
+    if [[ "${1:-}" == update ]]; then
+      shift
+      exec bash "$HERE/tools/update.sh" "$@"
+    fi
     exec python3 "$HERE/src/linux_bridge_console/dashboard.py" "$@"
     ;;
 esac
