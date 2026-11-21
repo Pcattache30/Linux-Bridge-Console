@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+APP="/usr/lib/linux-bridge-console"
+STATE="$HOME/.local/share/linux-bridge-console/worker-state.json"
+SERVICE_DIR="$HOME/.config/systemd/user"
+case "${1:-}" in
+  status)
+    if [[ -f "$STATE" ]]; then cat "$STATE"; else echo "No worker status yet. Run: lbc install-service"; fi
+    ;;
+  update)
+    echo "Installed .deb build: upgrade using a verified Debian package."
+    echo "For development source updates, run tools/update.sh in the source checkout."
+    echo "Release-based automatic package upgrades will be added after release verification."
+    ;;
+  install-service)
+    mkdir -p "$SERVICE_DIR"
+    install -m 0644 "/usr/lib/systemd/user/linux-bridge-console.service" \
+      "$SERVICE_DIR/linux-bridge-console.service"
+    systemctl --user daemon-reload
+    systemctl --user enable --now linux-bridge-console.service
+    echo "Worker enabled for this user (auto-run disabled)."
+    echo "GitHub authentication: run gh auth login for this same user."
+    echo "For unattended operation after logout: sudo loginctl enable-linger $(id -un)"
+    ;;
+  *)
+    exec python3 "$APP/dashboard.py" "$@"
+    ;;
+esac
