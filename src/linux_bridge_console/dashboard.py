@@ -59,6 +59,10 @@ class Console:
             ["dpkg-query", "-W", "-f=${Version}", "linux-bridge-console"],
             capture_output=True, text=True, check=False)
         self.version = package_version.stdout.strip() if package_version.returncode == 0 else "dev"
+        runtime_path = Path(__file__).resolve()
+        versions_dir = HOME / "versions"
+        if versions_dir in runtime_path.parents:
+            self.version = runtime_path.parents[3].name
 
     def note(self, message):
         with self.lock:
