@@ -1,5 +1,6 @@
 """Linux Bridge Console: interactive Windows Bridge-like job console."""
 import argparse
+import shutil
 import curses
 import fcntl
 import json
@@ -172,73 +173,146 @@ class Console:
                 pass
         return lines
 
-def paint(scr, rows, footer):
+def put(scr, y, x, value, width, attr=0):
+    height, columns = scr.getmaxyx()
+    if y < 0 or y >= height or x < 0 or x >= columns or width < 1:
+        return
+    try:
+        scr.addnstr(y, x, str(value), min(width, columns-x-1), attr)
+    except curses.error:
+        pass
+
+def panel(scr, y, x, height, width, title, color):
+    if height < 3 or width < 5:
+        return
+    edge = "+" + "-" * (width-2) + "+"
+    put(scr, y, x, edge, width, color)
+    for row in range(y+1, y+height-1):
+        put(scr, row, x, "|", 1, color)
+        put(scr, row, x+width-1, "|", 1, color)
+    put(scr, y+height-1, x, edge, width, color)
+    put(scr, y, x+2, " " + title.upper() + " ", width-4, color | curses.A_BOLD)
+
+def palette():
+    if not curses.has_colors():
+        return {name: curses.A_BOLD for name in ("accent", "good", "warn", "bad", "muted")}
+    curses.start_color()
+    curses.use_default_colors()
+    for n, foreground in enumerate(
+        (curses.COLOR_CYAN, curses.COLOR_GREEN, curses.COLOR_YELLOW,
+         curses.COLOR_RED, curses.COLOR_WHITE), 1
+    ):
+        curses.init_pair(n, foreground, -1)
+    return dict(zip(("accent", "good", "warn", "bad", "muted"),
+                    (curses.color_pair(n) for n in range(1, 6))))
+
+def display(scr, app, show_history, colors):
     scr.erase()
-    height, width = scr.getmaxyx()
-    if height < 16 or width < 55:
-        rows = ["Enlarge terminal to at least 55 columns x 16 lines"]
-    for index, text in enumerate(rows[:max(0, height-2)]):
-        try:
-            attr = curses.A_BOLD if index in (0, 2) else 0
-            scr.addnstr(index, 1, str(text), max(0, width - 2), attr)
-        except curses.error:
-            pass
-    if height > 1 and width > 2:
-        try:
-            scr.addnstr(height-1, 0, footer.ljust(width-1), width-1, curses.A_REVERSE)
-        except curses.error:
-            pass
+    h, w = scr.getmaxyx()
+    if h < 20 or w < 80:
+        put(scr, 1, 2, "Resize terminal to at least 80 x 20", max(1,w-4))
+        put(scr, h-1, 0, "[Q] Quit", max(1,w-1), curses.A_REVERSE)
+        scr.refresh()
+        return
+
+    state = app.phase.lower()
+    status_style = (colors["bad"] if "error" in state or "fail" in state
+                    else colors["good"] if "complete" in state
+                    else colors["warn"] if "available" in state
+                    else colors["accent"])
+    now = time.monotonic()
+    elapsed = int(now - app.started) if app.processing and app.started else 0
+    left = max(34, min(49, int(w * .41)))
+    right_x = left + 2
+    right_w = w - right_x - 1
+    top = 7
+    middle_h = 10
+    log_y = top + middle_h + 1
+    log_h = max(3, h - log_y - 4)
+
+    put(scr, 0, 1, "  LINUX BRIDGE CONSOLE", w-3, colors["accent"] | curses.A_BOLD)
+    put(scr, 0, max(2,w-25), "INTERACTIVE JOB RUNNER", 23, colors["muted"])
+    put(scr, 1, 1, "=" * (w-3), w-3, colors["accent"])
+    put(scr, 2, 2, "REPOSITORY", 12, colors["muted"])
+    put(scr, 2, 16, app.repo + "  [" + app.branch + "]", w-19, curses.A_BOLD)
+    put(scr, 3, 2, "CONNECTION", 12, colors["muted"])
+    put(scr, 3, 16, "GitHub polling every 15s", w-18)
+    put(scr, 4, 2, "AUTO RUN", 10, colors["muted"])
+    put(scr, 4, 16, "ON" if app.prefs["autoRun"] else "OFF", 4,
+        colors["good"] if app.prefs["autoRun"] else colors["warn"])
+    put(scr, 4, 29, "AUTO SEND", 11, colors["muted"])
+    put(scr, 4, 42, "ON" if app.prefs["autoSend"] else "OFF", 4,
+        colors["good"] if app.prefs["autoSend"] else colors["warn"])
+    put(scr, 5, 2, "STATUS", 10, colors["muted"])
+    put(scr, 5, 16, app.phase, 24, status_style | curses.A_BOLD)
+    put(scr, 5, 44, "NEXT CHECK " + str(max(0, int(app.next_check-now))) + "s", 20, colors["accent"])
+    put(scr, 6, 1, "-" * (w-3), w-3, colors["muted"])
+
+    panel(scr, top, 1, middle_h, left, "Current Job", colors["accent"])
+    panel(scr, top, right_x, middle_h, right_w, "Execution & Activity", colors["accent"])
+    job = app.job
+    result = app.result
+    job_details = [
+        ("JOB ID", job.get("id", "--")),
+        ("DESCRIPTION", job.get("description", "--")),
+        ("SCRIPT", job.get("script", "--")),
+        ("RESULT", result.get("status", "Not executed")),
+        ("EXIT CODE", result.get("exitCode", "--")),
+        ("DURATION", f"{elapsed//60:02}:{elapsed%60:02}" if app.processing else "--"),
+        ("MODE", "Interactive session"),
+    ]
+    for idx, (label, value) in enumerate(job_details):
+        put(scr, top+1+idx, 3, label, 12, colors["muted"])
+        put(scr, top+1+idx, 16, value, max(1, left-19),
+            status_style if label == "RESULT" else 0)
+
+    actions = app.history[-(middle_h-2):]
+    for idx, line in enumerate(actions):
+        put(scr, top+1+idx, right_x+2, line, max(1,right_w-5))
+    if not actions:
+        put(scr, top+2, right_x+2, "Waiting for GitHub activity...", max(1,right_w-5))
+
+    panel(scr, log_y, 1, log_h, w-2,
+          "Activity History" if show_history else "Live Job Output", colors["accent"])
+    lines = app.history if show_history else app.output()
+    available = max(0, log_h-2)
+    for idx, line in enumerate(lines[-available:]):
+        put(scr, log_y+1+idx, 3, line, w-7,
+            colors["bad"] if "error" in line.lower() else 0)
+
+    put(scr, h-3, 2, "LAST: " + str(app.message), w-5, colors["muted"])
+    footer = " F Fetch | R Run | A Auto Run | T Auto Send | S Send | L Logs | U Update | Q Quit "
+    put(scr, h-1, 0, footer.ljust(w-1), w-1, curses.A_REVERSE)
     scr.refresh()
 
 def screen(scr, app):
     curses.curs_set(0)
     scr.timeout(250)
+    colors = palette()
     show_history = False
     app.submit("Fetch", app.fetch)
-    footer = "[F] Fetch [R] Run [A] Auto Run [T] Auto Send [S] Send [L] Logs [Q] Quit"
     while True:
         now = time.monotonic()
         if now >= app.next_check and not app.busy and not app.processing:
             app.next_check = now + POLL
             app.submit("Fetch", app.fetch)
-        jid = app.job.get("id", "--")
-        elapsed = int(now-app.started) if app.processing and app.started else 0
-        result = app.result
-        rows = [
-            " LINUX BRIDGE CONSOLE  |  GitHub Job Runner",
-            "=" * 70,
-            f"Repository : {app.repo}  [{app.branch}]",
-            f"Auto Run   : {'ON' if app.prefs['autoRun'] else 'OFF'}    Auto Send: {'ON' if app.prefs['autoSend'] else 'OFF'}",
-            f"Phase      : {app.phase}   Elapsed: {elapsed//60:02}:{elapsed%60:02}",
-            f"Next check : {max(0, int(app.next_check-now))}s",
-            "-" * 70,
-            f"Job        : {jid}",
-            f"Description: {app.job.get('description', '--')}",
-            f"Script     : {app.job.get('script', '--')}",
-            f"Result     : {result.get('status', 'Pending')}",
-            f"Exit code  : {result.get('exitCode', '--')}",
-            "-" * 70,
-            "JOB LOG" if not show_history else "ACTIVITY HISTORY",
-        ]
-        rows.extend(app.history[-12:] if show_history else app.output()[-12:])
-        rows += ["", f"Status: {app.message}"]
-        paint(scr, rows, footer)
+        display(scr, app, show_history, colors)
         key = scr.getch()
-        if key in (ord("q"), ord("Q")):
+        if key in (ord("q"), ord("Q"), ord("u"), ord("U")):
             if app.processing or app.busy:
-                app.note("Operation in progress: finish before quitting")
+                app.note("Job or GitHub operation active; finish before exiting/updating")
             else:
-                return
+                return "update" if key in (ord("u"), ord("U")) else "quit"
         elif key in (ord("a"), ord("A")):
             app.prefs["autoRun"] = not app.prefs["autoRun"]
             save_prefs(app.prefs)
-            app.note(f"Auto Run {'enabled' if app.prefs['autoRun'] else 'disabled'}")
+            app.note("Auto Run " + ("ON" if app.prefs["autoRun"] else "OFF"))
             if app.prefs["autoRun"] and app.job and not app.result and not app.processing:
                 app.start_job()
         elif key in (ord("t"), ord("T")):
             app.prefs["autoSend"] = not app.prefs["autoSend"]
             save_prefs(app.prefs)
-            app.note("Auto Send " + ("enabled" if app.prefs["autoSend"] else "disabled"))
+            app.note("Auto Send " + ("ON" if app.prefs["autoSend"] else "OFF"))
         elif key in (ord("r"), ord("R")):
             app.start_job()
         elif key in (ord("f"), ord("F")):
@@ -265,7 +339,20 @@ def main():
         except BlockingIOError:
             print("Another LBC console is already running", file=sys.stderr)
             return 1
-        curses.wrapper(screen, Console(args.repo, args.branch))
+        action = curses.wrapper(screen, Console(args.repo, args.branch))
+        if action == "update":
+            updater = "/usr/lib/linux-bridge-console/update-package.sh"
+            if not Path(updater).exists():
+                print("Package updater unavailable; install a packaged release.")
+                return 1
+            print("Checking for LBC package updates...")
+            result = subprocess.run(["bash", updater], check=False)
+            if result.returncode:
+                print(f"Update failed (exit {result.returncode}).")
+                return result.returncode
+            print("Update check completed. Reopening dashboard...")
+            os.execv(sys.executable, [sys.executable, "/usr/lib/linux-bridge-console/dashboard.py",
+                                      "--repo", args.repo, "--branch", args.branch])
     return 0
 
 if __name__ == "__main__":
