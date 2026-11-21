@@ -11,6 +11,13 @@ case "${1:-}" in
     shift
     exec bash "$APP/update-package.sh" "$@"
     ;;
+  auto-update)
+    case "${2:-status}" in
+      enable) exec sudo /usr/lib/linux-bridge-console/enable-auto-update.sh ;;
+      status) exec systemctl status lbc-auto-update.timer --no-pager ;;
+      *) echo "Usage: lbc auto-update [enable|status]" >&2; exit 2 ;;
+    esac
+    ;;
   install-service)
     mkdir -p "$SERVICE_DIR"
     install -m 0644 "/usr/lib/systemd/user/linux-bridge-console.service" \
