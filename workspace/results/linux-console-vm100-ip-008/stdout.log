@@ -1,0 +1,57 @@
+LBC_VM100_IP_CHECK_008_START
+status: running
+[
+   {
+      "hardware-address" : "00:00:00:00:00:00",
+      "ip-addresses" : [
+         {
+            "ip-address" : "127.0.0.1",
+            "ip-address-type" : "ipv4",
+            "prefix" : 8
+         },
+         {
+            "ip-address" : "::1",
+            "ip-address-type" : "ipv6",
+            "prefix" : 128
+         }
+      ],
+      "name" : "lo",
+      "statistics" : {
+         "rx-bytes" : 5844,
+         "rx-dropped" : 0,
+         "rx-errs" : 0,
+         "rx-packets" : 72,
+         "tx-bytes" : 5844,
+         "tx-dropped" : 0,
+         "tx-errs" : 0,
+         "tx-packets" : 72
+      }
+   },
+   {
+      "hardware-address" : "bc:24:11:f6:6e:3c",
+      "ip-addresses" : [
+         {
+            "ip-address" : "10.0.1.150",
+            "ip-address-type" : "ipv4",
+            "prefix" : 24
+         },
+         {
+            "ip-address" : "fe80::1554:2d7c:bbb9:a418",
+            "ip-address-type" : "ipv6",
+            "prefix" : 64
+         }
+      ],
+      "name" : "ens18",
+      "statistics" : {
+         "rx-bytes" : 23127296,
+         "rx-dropped" : 3,
+         "rx-errs" : 0,
+         "rx-packets" : 13035,
+         "tx-bytes" : 400473,
+         "tx-dropped" : 0,
+         "tx-errs" : 0,
+         "tx-packets" : 5751
+      }
+   }
+]
+LBC_VM100_IP_CHECK_008_COMPLETE

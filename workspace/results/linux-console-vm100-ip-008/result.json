@@ -1,0 +1,10 @@
+{
+  "jobId": "linux-console-vm100-ip-008",
+  "description": "Read VM 100 IPv4 address via GRID3 QEMU guest agent",
+  "status": "success",
+  "exitCode": 0,
+  "startedAt": "2026-11-22T14:40:28.522466+00:00",
+  "finishedAt": "2026-11-22T14:40:31.091583+00:00",
+  "hostname": "test",
+  "runner": "linux-bridge-console/0.1"
+}
