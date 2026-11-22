@@ -1,5 +1,5 @@
 {
-  "id": "linux-console-freshvm-007",
-  "description": "Create Debian 13 test VM on GRID3 and verify public GitHub LBC .deb installation",
-  "script": "linux-console-freshvm-007.sh"
+  "id": "linux-console-vm100-ip-008",
+  "description": "Read VM 100 IPv4 address via GRID3 QEMU guest agent",
+  "script": "linux-console-vm100-ip-008.sh"
 }
