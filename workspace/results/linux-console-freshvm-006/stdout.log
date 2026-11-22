@@ -1,0 +1,5 @@
+LBC_FRESH_VM_006_START
+runner_host=test
+runner_user=test
+BLOCKED: The LBC VM cannot authenticate to GRID3 as root, or required storage/ISO unavailable.
+No VM was created. Configure key-based SSH access for the LBC VM first.

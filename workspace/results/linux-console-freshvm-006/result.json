@@ -1,0 +1,10 @@
+{
+  "jobId": "linux-console-freshvm-006",
+  "description": "Provision clean Debian 13 VM on GRID3 and test public GitHub LBC package installation",
+  "status": "failed",
+  "exitCode": 10,
+  "startedAt": "2026-11-22T14:24:35.115938+00:00",
+  "finishedAt": "2026-11-22T14:24:35.230259+00:00",
+  "hostname": "test",
+  "runner": "linux-bridge-console/0.1"
+}
