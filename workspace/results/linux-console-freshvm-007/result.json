@@ -1,0 +1,10 @@
+{
+  "jobId": "linux-console-freshvm-007",
+  "description": "Create Debian 13 test VM on GRID3 and verify public GitHub LBC .deb installation",
+  "status": "success",
+  "exitCode": 0,
+  "startedAt": "2026-11-22T14:34:31.011797+00:00",
+  "finishedAt": "2026-11-22T14:38:22.921842+00:00",
+  "hostname": "test",
+  "runner": "linux-bridge-console/0.1"
+}
