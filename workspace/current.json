@@ -1,5 +1,5 @@
 {
-  "id": "linux-console-cleanup-005",
-  "description": "Remove previous LBC user versions and legacy launcher; uninstall obsolete system package if authorized",
-  "script": "linux-console-cleanup-005.sh"
+  "id": "linux-console-freshvm-006",
+  "description": "Provision clean Debian 13 VM on GRID3 and test public GitHub LBC package installation",
+  "script": "linux-console-freshvm-006.sh"
 }
