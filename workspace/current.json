@@ -1,5 +1,5 @@
 {
-  "id": "linux-console-freshvm-006",
-  "description": "Provision clean Debian 13 VM on GRID3 and test public GitHub LBC package installation",
-  "script": "linux-console-freshvm-006.sh"
+  "id": "linux-console-freshvm-007",
+  "description": "Create Debian 13 test VM on GRID3 and verify public GitHub LBC .deb installation",
+  "script": "linux-console-freshvm-007.sh"
 }
